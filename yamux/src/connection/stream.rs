@@ -94,6 +94,7 @@ pub struct Stream {
     sender: mpsc::Sender<StreamCommand>,
     flag: Flag,
     shared: Arc<Mutex<Shared>>,
+    reserved_header_size: usize,
 }
 
 impl fmt::Debug for Stream {
@@ -126,6 +127,7 @@ impl Stream {
             sender,
             flag: Flag::None,
             shared: Arc::new(Mutex::new(Shared::new(DEFAULT_CREDIT, credit, config))),
+            reserved_header_size: 0,
         }
     }
 
@@ -143,7 +145,12 @@ impl Stream {
             sender,
             flag: Flag::None,
             shared: Arc::new(Mutex::new(Shared::new(window, DEFAULT_CREDIT, config))),
+            reserved_header_size: 0,
         }
+    }
+
+    pub fn set_reserved_header_size(&mut self, reserved_header_size: usize) {
+        self.reserved_header_size = reserved_header_size;
     }
 
     /// Get this stream's identifier.
@@ -370,7 +377,7 @@ impl AsyncWrite for Stream {
             Vec::from(&buf[..k])
         };
         let n = body.len();
-        let mut frame = Frame::data(self.id, body).expect("body <= u32::MAX").left();
+        let mut frame = Frame::data(self.id, body, self.reserved_header_size).expect("body <= u32::MAX").left();
         self.add_flag(frame.header_mut());
         log::trace!("{}/{}: write {} bytes", self.conn, self.id, n);
 

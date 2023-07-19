@@ -126,14 +126,24 @@ impl<T: AsyncRead + AsyncWrite + Unpin> Sink<Frame<()>> for Io<T> {
         }
     }
 
-    fn start_send(self: Pin<&mut Self>, f: Frame<()>) -> Result<(), Self::Error> {
-        let header = header::encode(&f.header);
-        let buffer = f.body;
-        self.get_mut().write_state = WriteState::Header {
-            header,
-            buffer,
-            offset: 0,
-        };
+    fn start_send(self: Pin<&mut Self>, mut f: Frame<()>) -> Result<(), Self::Error> {
+        let reserved_header_size = f.reserved_header_size();
+        if reserved_header_size >= header::HEADER_SIZE {
+            let start = reserved_header_size - header::HEADER_SIZE;
+            header::encode_in(&f.header, &mut f.body[start..start + header::HEADER_SIZE]);
+            self.get_mut().write_state = WriteState::Body {
+                buffer: f.body,
+                offset: start,
+            }
+        } else {
+            let header = header::encode(&f.header);
+            let buffer = f.body;
+            self.get_mut().write_state = WriteState::Header {
+                header,
+                buffer,
+                offset: 0,
+            };
+        }
         Ok(())
     }
 

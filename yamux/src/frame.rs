@@ -41,6 +41,10 @@ impl<T> Frame<T> {
         &mut self.header
     }
 
+    pub fn reserved_header_size(&self) -> usize {
+        self.body.len().checked_sub(self.header.len().val() as usize).unwrap_or_default()
+    }
+
     /// Introduce this frame to the right of a binary frame type.
     pub(crate) fn right<U>(self) -> Frame<Either<U, T>> {
         Frame {
@@ -91,9 +95,9 @@ impl Frame<()> {
 }
 
 impl Frame<Data> {
-    pub fn data(id: StreamId, b: Vec<u8>) -> Result<Self, TryFromIntError> {
+    pub fn data(id: StreamId, b: Vec<u8>, reserved_header_size: usize) -> Result<Self, TryFromIntError> {
         Ok(Frame {
-            header: Header::data(id, b.len().try_into()?),
+            header: Header::data(id, (b.len() - reserved_header_size).try_into()?),
             body: b,
         })
     }

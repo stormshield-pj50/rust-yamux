@@ -354,13 +354,18 @@ pub const HEADER_SIZE: usize = 12;
 /// Encode a [`Header`] value.
 pub fn encode<T>(hdr: &Header<T>) -> [u8; HEADER_SIZE] {
     let mut buf = [0; HEADER_SIZE];
+    encode_in(hdr, &mut buf);
+    buf
+}
+
+pub fn encode_in<T>(hdr: &Header<T>, buf: &mut [u8]) {
     buf[0] = hdr.version.0;
     buf[1] = hdr.tag as u8;
     buf[2..4].copy_from_slice(&hdr.flags.0.to_be_bytes());
     buf[4..8].copy_from_slice(&hdr.stream_id.0.to_be_bytes());
     buf[8..HEADER_SIZE].copy_from_slice(&hdr.length.0.to_be_bytes());
-    buf
 }
+
 
 /// Decode a [`Header`] value.
 pub fn decode(buf: &[u8; HEADER_SIZE]) -> Result<Header<()>, HeaderDecodeError> {
